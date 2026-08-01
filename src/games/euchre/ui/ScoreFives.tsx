@@ -22,12 +22,18 @@ interface Props {
  * Cover transforms for "expose N pips of the card underneath", N = 1–4.
  * Positions are worked out against the pip grid (rows at 20/50/80% of a
  * 44×62 card) so each pose covers exactly the pips it should.
+ *
+ * Both cards are the same card, so no pose may scale: a cover that is bigger
+ * than the card under it stops reading as a deck. The diagonals earn their
+ * coverage from translation alone — pose 1 slides down-right far enough to
+ * leave the top-left pip out, pose 4 hangs off the bottom-right corner with
+ * only its near edge over the last pip. Check any edit against `/#fives`.
  */
 const COVER_POSE: Record<number, string> = {
-  1: 'translate(41%, 3%) rotate(45deg) scale(1.15)',
+  1: 'translate(26%, 6%) rotate(45deg)',
   2: 'translate(0, 16%) rotate(90deg)',
   3: 'translate(0, 44%) rotate(90deg)',
-  4: 'translate(50%, 50%) rotate(45deg) scale(1.15)',
+  4: 'translate(75%, 15%) rotate(45deg)',
 };
 
 const PIPS: [number, number][] = [[30, 20], [70, 20], [50, 50], [30, 80], [70, 80]];

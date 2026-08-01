@@ -79,6 +79,18 @@ export function teamName(names: string[], team: number): string {
   return [0, 1, 2, 3].filter((s) => TEAM_OF[s] === team).map((s) => names[s]).join(' & ');
 }
 
+/**
+ * The card backs to fan for an opponent. The dealer holds six for the beat
+ * between picking up and burying, and a sixth back would re-centre and
+ * re-angle every card in the fan twice inside a second — read as a jolt, not
+ * as a pickup. The card flying in and the burial flying back out already tell
+ * that story, so the fan holds still.
+ */
+function fanOf(state: GameState, seat: number): Card[] {
+  const hand = state.hands[seat] ?? [];
+  return state.phase === 'discard' && seat === state.dealer ? hand.slice(0, -1) : hand;
+}
+
 function isActing(state: GameState, seat: number): boolean {
   switch (state.phase) {
     case 'order1':
@@ -339,7 +351,7 @@ export function EuchreTable({ state, names, dispatch, noTrumpRule }: Props) {
               {state.inactive === seat && <span className="out-note"> · sitting out</span>}
             </div>
             <div className="seat-fan">
-              {state.inactive !== seat && state.hands[seat]?.map((c, i, arr) => (
+              {state.inactive !== seat && fanOf(state, seat).map((c, i, arr) => (
                 <div key={c.id} className="fan-back"
                   style={{ transform: `rotate(${(i - (arr.length - 1) / 2) * 5}deg)` }} />
               ))}

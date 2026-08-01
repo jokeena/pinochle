@@ -359,7 +359,9 @@ body {
     0 0 0 12px rgba(60, 44, 16, 0.5),
     0 14px 36px rgba(90, 70, 30, 0.35);
 }
-/* Center emblem woven into the cloth — shows the trump suit once named */
+/* Center emblem woven into the cloth — shows the trump suit once named.
+   It fades in: a glyph this size appearing in one frame reads as the page
+   having reloaded, right at the moment trump is called. */
 .felt::before {
   content: attr(data-mark);
   position: absolute;
@@ -370,7 +372,10 @@ body {
   color: rgba(255, 255, 255, 0.05);
   text-shadow: 0 1px 0 rgba(0, 40, 10, 0.12);
   pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.55s ease-out;
 }
+.felt[data-mark='']::before { opacity: 0; }
 .felt::after {
   content: '';
   position: absolute;
