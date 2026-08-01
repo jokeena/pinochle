@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CardView } from '../../../cards/CardView';
 import { GameAction, GameState, PLAYERS, TEAM_OF, partnerOf } from '../engine/game';
 import { legalPlays, winningIndex } from '../engine/tricks';
-import { Card, RANK_POWER, SUITS, SUIT_SYMBOL, Suit, effectiveSuit, isRed, trickPower } from '../engine/types';
+import { Card, RANK_POWER, SUITS, SUIT_NAME, SUIT_SYMBOL, Suit, effectiveSuit, isRed, trickPower } from '../engine/types';
 import { ScoreFives } from './ScoreFives';
 
 const SEAT_POS: [number, number][] = [[50, 100], [8, 50], [50, 16], [92, 50]];
@@ -12,18 +12,24 @@ const MOBILE_TRICK_OFFSET: [number, number][] = [[0, 62], [-68, 0], [0, -46], [6
 
 /**
  * Where the kitty sits during the order rounds, in front of whichever seat
- * dealt. For your own deal it's dead center below the order panel (the
- * panel raises itself to make room).
+ * dealt. On your own deal it sits to the left of the order panel — dead
+ * center it would fight the panel and the status bar for the same strip.
+ * These anchor the STACK itself; the notes hang off it, out of flow.
  */
-const KITTY_POS: [number, number][] = [[50, 88], [25, 51], [50, 40], [75, 51]];
-const MOBILE_KITTY_POS: [number, number][] = [[50, 54], [42, 44], [50, 42], [58, 44]];
+const KITTY_POS: [number, number][] = [[30, 80], [25, 51], [50, 40], [75, 51]];
+/**
+ * On a phone the kitty has to sit close enough to its dealer to read as
+ * "theirs" without landing on an avatar, the trick, or the score fives —
+ * so it tucks just inside each seat, offset toward the middle of the felt.
+ */
+const MOBILE_KITTY_POS: [number, number][] = [[50, 56], [33, 42], [50, 35], [67, 42]];
 
 /**
  * Once the hand is underway the kitty retires to the table edge beside
  * the dealer, out of the way of the trick.
  */
-const KITTY_PLAY_POS: [number, number][] = [[38, 90], [12, 68], [63, 17], [88, 68]];
-const MOBILE_KITTY_PLAY_POS: [number, number][] = [[18, 78], [14, 58], [64, 19], [86, 58]];
+const KITTY_PLAY_POS: [number, number][] = [[30, 82], [12, 68], [63, 17], [88, 68]];
+const MOBILE_KITTY_PLAY_POS: [number, number][] = [[18, 80], [13, 63], [70, 27], [87, 63]];
 
 /** Your team plays the red 5s, theirs the black — matching the avatar rings. */
 export const TEAM_COLORS = ['#e06868', '#4a5568'];
@@ -137,6 +143,8 @@ export function EuchreTable({ state, names, dispatch, noTrumpRule }: Props) {
   const [aloneSel, setAloneSel] = useState(false);
   const [drawN, setDrawN] = useState(0);
   const [flights, setFlights] = useState<Flight[]>([]);
+  /** The turn card mid-flip, after everyone passed round 1. */
+  const [flipDown, setFlipDown] = useState<{ key: number; card: Card } | null>(null);
   const prevPhase = useRef(state.phase);
   const flightKey = useRef(0);
 
@@ -154,6 +162,15 @@ export function EuchreTable({ state, names, dispatch, noTrumpRule }: Props) {
       flight = { key: flightKey.current++, card: state.upcard, from: kittyPos, to: positions[state.dealer] };
     } else if (prev === 'discard' && state.phase === 'play') {
       flight = { key: flightKey.current++, card: null, from: positions[state.dealer], to: kittyPos };
+    } else if (prev === 'order1' && state.phase === 'order2' && state.upcard) {
+      // Everyone passed: the turn card rolls face down onto the kitty.
+      const f = { key: flightKey.current++, card: state.upcard };
+      setFlipDown(f);
+      const t = setTimeout(() => {
+        flightTimers.current.delete(t);
+        setFlipDown((cur) => (cur?.key === f.key ? null : cur));
+      }, 700);
+      flightTimers.current.add(t);
     }
     if (flight) {
       const f = flight;
@@ -250,16 +267,24 @@ export function EuchreTable({ state, names, dispatch, noTrumpRule }: Props) {
 
   return (
     <div className="table-wrap">
-      <div className="felt" data-mark={state.trump ? SUIT_SYMBOL[state.trump] : ''}>
+      <div className={`felt ${state.noTrump ? 'felt-nt' : ''}`}
+        data-mark={state.trump ? SUIT_SYMBOL[state.trump] : state.noTrump ? 'NT' : ''}>
         {/* Compact board: target, trump, and this hand's trick tally. Every
             slot is always rendered so nothing inside jumps when trump lands. */}
         <div className="board board-euchre">
           <div className="board-head">
-            <span>First to 10</span>
+            <span className="board-goal">First to 10</span>
+            {/* Trump lives on the right of the head all hand long — on a phone
+                the goal drops away and the strip keeps just this. */}
             <span
               className={`board-trump ${state.trump && isRed(state.trump) ? 'suit-red' : ''} ${state.noTrump ? 'board-nt' : ''}`}
               style={{ visibility: state.trump || state.noTrump ? 'visible' : 'hidden' }}>
-              {state.trump ? SUIT_SYMBOL[state.trump] : state.noTrump ? 'NT' : '♠'}
+              <span className="board-trump-sym">
+                {state.trump ? SUIT_SYMBOL[state.trump] : 'NT'}
+              </span>
+              <span className="board-trump-name">
+                {state.trump ? SUIT_NAME[state.trump] : 'aces high'}
+              </span>
             </span>
           </div>
           {[0, 1].map((team) => (
@@ -303,9 +328,9 @@ export function EuchreTable({ state, names, dispatch, noTrumpRule }: Props) {
               style={{ ['--team' as string]: TEAM_COLORS[TEAM_OF[seat]] }}>
               {names[seat][0]}
               {state.dealer === seat && !isDraw && <span className="chip chip-dealer">D</span>}
-              {state.maker === seat && makerVisible && state.trump && (
-                <span className={`chip chip-bid chip-trump ${isRed(state.trump) ? 'chip-red' : ''}`}>
-                  {SUIT_SYMBOL[state.trump]}
+              {state.maker === seat && makerVisible && (state.trump || state.noTrump) && (
+                <span className={`chip chip-bid chip-trump ${state.trump && isRed(state.trump) ? 'chip-red' : ''} ${state.noTrump ? 'chip-nt' : ''}`}>
+                  {state.trump ? SUIT_SYMBOL[state.trump] : 'NT'}
                 </span>
               )}
             </div>
@@ -362,21 +387,42 @@ export function EuchreTable({ state, names, dispatch, noTrumpRule }: Props) {
           <div className={`kitty-spot ${state.trump || state.noTrump ? 'kitty-quiet' : ''}`}
             style={{ left: `${kittyPos[0]}%`, top: `${kittyPos[1]}%` }}>
             <div className="kitty-stack">
-              {Array.from({ length: state.kitty.length + (state.discard ? 1 : 0) }).map((_, i) => (
+              {/* The card mid-flip is the one it's about to become — don't
+                  count it twice or the pile visibly grows under it. */}
+              {Array.from({
+                length: state.kitty.length + (state.discard ? 1 : 0) - (flipDown ? 1 : 0),
+              }).map((_, i) => (
                 <div key={i} className="fan-back" style={{ transform: `translate(${i * 2}px, ${-i * 2}px)` }} />
               ))}
               {state.turnCard && (
                 <div className="upcard"><CardView card={state.turnCard} size={narrow ? 'small' : 'mid'} /></div>
               )}
+              {flipDown && (
+                <div className="upcard turn-flip" key={flipDown.key}>
+                  <div className="turn-flip-face">
+                    <CardView card={flipDown.card} size={narrow ? 'small' : 'mid'} />
+                  </div>
+                  <div className="turn-flip-back">
+                    <CardView card={flipDown.card} faceDown size={narrow ? 'small' : 'mid'} />
+                  </div>
+                </div>
+              )}
             </div>
-            {state.phase === 'order1' && state.turnCard && (
-              <span className="kitty-note">up for grabs</span>
-            )}
-            {state.phase === 'order2' && state.turnedDown && (
-              <span className="kitty-note">
-                <span className={isRed(state.turnedDown) ? 'suit-red' : ''}>{SUIT_SYMBOL[state.turnedDown]}</span> turned down
+            {/* Notes hang off the stack without taking layout space — the pile
+                must not hop when a line appears or goes away. */}
+            <div className="kitty-notes">
+              <span className="kitty-tag">
+                {state.dealer === 0 ? 'your deal' : `${names[state.dealer]}'s deal`}
               </span>
-            )}
+              {state.phase === 'order1' && state.turnCard && (
+                <span className="kitty-note">up for grabs</span>
+              )}
+              {state.phase === 'order2' && state.turnedDown && (
+                <span className="kitty-note">
+                  <span className={isRed(state.turnedDown) ? 'suit-red' : ''}>{SUIT_SYMBOL[state.turnedDown]}</span> turned down
+                </span>
+              )}
+            </div>
           </div>
         )}
 
@@ -569,9 +615,9 @@ export function EuchreTable({ state, names, dispatch, noTrumpRule }: Props) {
             style={{ ['--team' as string]: TEAM_COLORS[0] }}>
             You
             {state.dealer === 0 && !isDraw && <span className="chip chip-dealer">D</span>}
-            {state.maker === 0 && makerVisible && state.trump && (
-              <span className={`chip chip-bid chip-trump ${isRed(state.trump) ? 'chip-red' : ''}`}>
-                {SUIT_SYMBOL[state.trump]}
+            {state.maker === 0 && makerVisible && (state.trump || state.noTrump) && (
+              <span className={`chip chip-bid chip-trump ${state.trump && isRed(state.trump) ? 'chip-red' : ''} ${state.noTrump ? 'chip-nt' : ''}`}>
+                {state.trump ? SUIT_SYMBOL[state.trump] : 'NT'}
               </span>
             )}
           </div>

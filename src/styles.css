@@ -417,6 +417,9 @@ body {
   border-bottom: 1px solid #e5dfca;
 }
 .board-trump {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 1.15rem;
   background: #fff;
   color: #1c1c1c;
@@ -426,6 +429,17 @@ body {
   line-height: 1.25;
 }
 .board-trump.suit-red { color: var(--red); }
+/* Euchre spells the suit out beside the pip — trump is the one thing you
+   look up mid-hand */
+.board-trump-name {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.board-trump.board-nt { color: var(--navy-deep); }
+.board-nt .board-trump-sym { font-size: 0.9rem; font-weight: 800; letter-spacing: 1px; }
 .board-row {
   display: flex;
   align-items: center;
@@ -1593,6 +1607,17 @@ body {
 }
 .chip-trump { font-size: 0.7rem; padding-top: 1px; }
 .chip-trump.chip-red { color: #ff9d8a; }
+.chip-trump.chip-nt { font-size: 0.52rem; letter-spacing: 0.5px; }
+
+/* No Trump has no pip to weave into the cloth, so the emblem says so in
+   words — otherwise the felt reads as "trump not named yet" all hand. */
+.felt-nt::before {
+  font-size: min(13vh, 9vw);
+  font-family: var(--sans);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.1);
+}
 
 /* Kitty stack with the turn card riding on top; left/top come inline,
    placed between the dealer's seat and the table center */
@@ -1600,26 +1625,64 @@ body {
   position: absolute;
   transform: translate(-50%, -50%);
   transition: left 0.6s ease, top 0.6s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 42px;
   z-index: 5;
   animation: fadeIn 0.3s ease-out;
 }
-.kitty-stack { position: relative; width: 48px; height: 66px; }
+.kitty-stack { position: relative; width: 48px; height: 66px; perspective: 800px; }
 .kitty-stack > .fan-back { position: absolute; inset: 0; margin: 0; }
 .upcard { position: absolute; left: 12px; top: 8px; transform: rotate(5deg); }
 .upcard-down .fan-back { position: static; margin: 0; transform: rotate(5deg); }
-.kitty-note {
+/* Hung off the stack, out of flow: a note appearing or leaving must never
+   nudge the pile itself. */
+.kitty-notes {
+  position: absolute;
+  /* Clears the turn card, which overhangs the stack box by ~30px */
+  top: calc(100% + 36px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+.kitty-note,
+.kitty-tag {
   font-size: 0.72rem;
   letter-spacing: 1.2px;
   color: rgba(255, 255, 255, 0.8);
   text-shadow: 0 1px 3px rgba(0, 40, 10, 0.6);
   white-space: nowrap;
 }
+/* Whose pile this is — the one label that stays put all hand */
+.kitty-tag {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: rgba(255, 255, 255, 0.62);
+}
 @media (max-width: 740px) {
-  .kitty-spot { gap: 30px; }
+  .kitty-notes { top: calc(100% + 24px); }
+  .kitty-note { font-size: 0.64rem; letter-spacing: 0.8px; }
+  .kitty-tag { font-size: 0.6rem; letter-spacing: 1px; }
+}
+
+/* Everyone passed: the turn card rolls face down onto the kitty */
+.turn-flip {
+  transform-style: preserve-3d;
+  animation: turnDown 0.7s ease-in-out both;
+  z-index: 6;
+}
+.turn-flip-face,
+.turn-flip-back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.turn-flip-back { position: absolute; inset: 0; transform: rotateY(180deg); }
+@keyframes turnDown {
+  0% { transform: rotate(5deg) rotateY(0deg); }
+  50% { transform: rotate(5deg) rotateY(90deg) scale(1.08); }
+  100% { transform: rotate(5deg) rotateY(180deg); }
 }
 
 /* Going-alone switch: gray/left = off, green/right = on */
@@ -1681,6 +1744,20 @@ body {
     justify-content: flex-start;
     gap: 1px 10px;
   }
+  /* The strip drops the head everywhere else, but euchre keeps the trump
+     chip on it — trump is the one thing you look up mid-hand. It rides at
+     the right end of the strip. */
+  .board-euchre .board-head {
+    display: inline-flex;
+    order: 5;
+    border-bottom: none;
+    padding: 0;
+    margin: 0;
+    font-size: inherit;
+  }
+  .board-euchre .board-goal { display: none; }
+  .board-euchre .board-trump { padding: 0 5px; font-size: 0.95rem; line-height: 1.35; }
+  .board-euchre .board-trump-name { display: none; }
   .board-euchre .board-row { display: inline-flex; align-items: center; gap: 4px; }
   .board-euchre .board-name { flex: none; }
   .board-euchre .board-score { margin-left: 3px; font-size: 0.85rem; }
@@ -1741,9 +1818,9 @@ body {
   z-index: 12;
 }
 
-/* Once trump is settled the kitty fades back */
+/* Once trump is settled the kitty fades back. It must NOT shrink — a pile
+   that changes size reads as cards going missing. */
 .kitty-quiet { opacity: 0.8; }
-.kitty-quiet .kitty-stack { transform: scale(0.85); }
 
 /* Kitty reveal row in the end-of-hand review */
 .review-kitty {
@@ -1787,17 +1864,20 @@ body {
 
 /* ---- The score fives ---- */
 .fives-spot { position: absolute; z-index: 4; }
-/* Both counters live top-left: yours up by your partner, theirs tucked
-   below the scoreboard, up-right of the left opponent */
-.fives-you { left: 35%; top: 11%; }
-.fives-them { left: 11%; top: 31%; }
+/* Both counters live top-left: yours kept up by your partner across the
+   table, theirs tucked under the scoreboard and clear of the left
+   opponent's avatar. */
+.fives-you { left: 39%; top: 11%; }
+.fives-them { left: 15.5%; top: 30%; }
 @media (max-width: 740px) {
-  .fives-you { left: 76%; top: 9%; }
-  .fives-them { left: 8%; top: 26%; }
-  .fives { transform: scale(0.78); }
+  /* Yours pulled in toward your partner's fan; theirs lifted clear of the
+     left opponent's avatar and tucked under the score strip. */
+  .fives-you { left: 66%; top: 9%; }
+  .fives-them { left: 9%; top: 12%; }
+  .fives { transform: scale(0.82); transform-origin: top left; }
 }
 
-.fives { position: relative; width: 46px; height: 64px; }
+.fives { position: relative; width: 58px; height: 81px; }
 .five-card {
   position: absolute;
   inset: 0;
