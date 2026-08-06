@@ -286,6 +286,13 @@ body {
   animation: bubbleIn 0.3s ease-out;
 }
 .bar-trump-sym { font-size: 1.3rem; line-height: 1; }
+/* "NT" is letters, not a pip — size it as a word */
+.bar-trump-nt .bar-trump-sym {
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--navy-deep);
+}
 .bar-bid {
   color: var(--ink-dim);
   font-weight: 600;
@@ -433,6 +440,9 @@ body {
   padding: 0 7px;
   line-height: 1.25;
 }
+/* No trump named yet: the chip goes invisible but keeps its box, so the head
+   (and the whole board under it) holds still when trump lands. */
+.board-head-empty .board-trump { visibility: hidden; }
 .board-trump.suit-red { color: var(--red); }
 /* Euchre spells the suit out beside the pip — trump is the one thing you
    look up mid-hand */
@@ -974,6 +984,25 @@ body {
   outline: 1px solid rgba(255, 255, 255, 0.45);
   outline-offset: 4px;
 }
+/* The white frame is a FRACTION of the card, not a fixed 6px — left flat it
+   eats a third of a small card's width and reads as a fat white border
+   (most visible on the turn card's flip, which is the one place a full-size
+   card back is shown big). Scale the frame, its inner rings, and the centre
+   diamond with each card size. */
+.card-mid.card-back::before { inset: 4.5px; border-radius: 4px; }
+.card-small.card-back::before {
+  inset: 3.5px;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1.2px rgba(255, 255, 255, 0.85),
+    inset 0 0 0 3.5px rgba(255, 255, 255, 0.15);
+}
+.card-mid.card-back::after { width: 12px; height: 12px; outline-offset: 3px; }
+.card-small.card-back::after {
+  width: 10px; height: 10px;
+  border-width: 1.2px;
+  outline-offset: 2.5px;
+}
 
 .card-red { color: #c0392b; }
 .card-black { color: #1c1c1c; }
@@ -1430,6 +1459,13 @@ body {
   .card-mid .card-court { inset: 7px 8px; }
   .card-small .card-court { inset: 6px 7px; }
   .card-selected { outline-width: 2px; }
+  /* Card backs shrink too, so the white frame shrinks with them */
+  .card.card-back::before { inset: 4.5px; }
+  .card-mid.card-back::before { inset: 3.5px; }
+  .card-small.card-back::before { inset: 3px; }
+  .card.card-back::after { width: 12px; height: 12px; outline-offset: 3px; }
+  .card-mid.card-back::after { width: 10px; height: 10px; outline-offset: 2.5px; }
+  .card-small.card-back::after { width: 8px; height: 8px; outline-offset: 2px; }
 
   /* --- human hand: edge to edge (no avatar/pile), fixed height. Slots
      flex-shrink evenly so the fan always fills the full screen width —
@@ -1743,37 +1779,76 @@ body {
   .panel-euchre .suit-btn { width: 46px; height: 46px; font-size: 1.6rem; }
   .panel-euchre .suit-nt { font-size: 0.72rem; }
 
-  /* Euchre scoreboard: one slim strip hugging the left edge */
+  /* Euchre scoreboard: one slim strip hugging the left edge. It must stay a
+     SINGLE line — a second row doubles the strip's height and buries the top
+     avatars for the rest of the game. Long name pairs ("Cha Cha & James")
+     shrink and ellipsize instead of wrapping. */
   .board-euchre {
+    /* Left-anchored and shrink-to-fit, but capped at the felt's width —
+       without the cap a nowrap strip just overflows the table edge instead
+       of letting the names inside it shrink. */
     right: auto;
+    max-width: calc(100% - 12px);
+    flex-wrap: nowrap;
     justify-content: flex-start;
-    gap: 1px 10px;
+    gap: 0 6px;
+    padding: 3px 6px 4px;
   }
   /* The strip drops the head everywhere else, but euchre keeps the trump
      chip on it — trump is the one thing you look up mid-hand. It rides at
-     the right end of the strip. */
+     the right end of the strip. Before trump is named the head is removed
+     outright: there's no goal text here to hold the height, so a merely
+     invisible chip would only reserve dead space on the strip. */
   .board-euchre .board-head {
     display: inline-flex;
+    flex: 0 0 auto;
     order: 5;
     border-bottom: none;
     padding: 0;
     margin: 0;
     font-size: inherit;
   }
+  .board-euchre .board-head-empty { display: none; }
   .board-euchre .board-goal { display: none; }
-  .board-euchre .board-trump { padding: 0 5px; font-size: 0.95rem; line-height: 1.35; }
+  .board-euchre .board-trump { padding: 0 3px; font-size: 0.9rem; line-height: 1.35; }
   .board-euchre .board-trump-name { display: none; }
-  .board-euchre .board-row { display: inline-flex; align-items: center; gap: 4px; }
-  .board-euchre .board-name { flex: none; }
-  .board-euchre .board-score { margin-left: 3px; font-size: 0.85rem; }
-  .board-euchre .tally { margin: 0 1px; gap: 2px; }
-  .board-euchre .tally i { width: 5px; height: 5px; }
-
-  /* Header flows left-to-right on phones — nothing centered, nothing overlaps */
-  .bar-dealt {
-    position: static;
-    transform: none;
+  .board-euchre .board-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    /* shrinkable, and min-width:0 is what lets the name inside actually clip */
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 0;
+  }
+  /* Every fixed part of a row is squeezed to what it actually needs, so a
+     long pair of names ("Cha Cha & James") spends the leftover width instead
+     of pushing the strip onto a second line. */
+  .board-euchre .board-name {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .board-euchre .team-dot { flex: 0 0 auto; }
+  .board-euchre .board-score {
+    flex: 0 0 auto;
     margin-left: 2px;
+    /* scores only ever reach 10 — the desktop board's 30px slot is wasted here */
+    min-width: 15px;
+    font-size: 0.82rem;
+  }
+  .board-euchre .tally { flex: 0 0 auto; margin: 0; gap: 2px; }
+  .board-euchre .tally i { width: 4.5px; height: 4.5px; }
+
+  /* Header flows left-to-right on phones — nothing centered, nothing overlaps.
+     The dealt note and the trump chip never share the bar (the note is only up
+     during the order rounds, the chip only after trump lands), so the note can
+     keep the centre to itself. */
+  .bar-dealt {
+    position: absolute;
+    max-width: 46vw;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -1789,6 +1864,7 @@ body {
   .bar-switch .switch-track { width: 30px; height: 17px; }
   .bar-switch .switch-knob { width: 13px; height: 13px; }
   .bar-switch.switch-on .switch-knob { left: 15px; }
+
 }
 
 /* Round-2 pass, quieter than the suit buttons */

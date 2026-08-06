@@ -276,6 +276,7 @@ export function EuchreTable({ state, names, dispatch, noTrumpRule }: Props) {
   const showOrderPanel = (state.phase === 'order1' || state.phase === 'order2') &&
     state.turn === 0 && !isDraw;
   const makerVisible = state.maker >= 0 && state.phase !== 'gameOver';
+  const trumpNamed = Boolean(state.trump) || state.noTrump;
 
   return (
     <div className="table-wrap">
@@ -284,13 +285,17 @@ export function EuchreTable({ state, names, dispatch, noTrumpRule }: Props) {
         {/* Compact board: target, trump, and this hand's trick tally. Every
             slot is always rendered so nothing inside jumps when trump lands. */}
         <div className="board board-euchre">
-          <div className="board-head">
+          {/* Before trump lands the chip is only *invisible*, not gone — on
+              desktop the head must keep its height or the board jumps. The
+              phone strip has no goal text to hold it open, so there the whole
+              head goes away instead (`board-head-empty`) rather than reserving
+              a slot that pushes the strip onto a second line. */}
+          <div className={`board-head ${trumpNamed ? '' : 'board-head-empty'}`}>
             <span className="board-goal">First to 10</span>
             {/* Trump lives on the right of the head all hand long — on a phone
                 the goal drops away and the strip keeps just this. */}
             <span
-              className={`board-trump ${state.trump && isRed(state.trump) ? 'suit-red' : ''} ${state.noTrump ? 'board-nt' : ''}`}
-              style={{ visibility: state.trump || state.noTrump ? 'visible' : 'hidden' }}>
+              className={`board-trump ${state.trump && isRed(state.trump) ? 'suit-red' : ''} ${state.noTrump ? 'board-nt' : ''}`}>
               <span className="board-trump-sym">
                 {state.trump ? SUIT_SYMBOL[state.trump] : 'NT'}
               </span>

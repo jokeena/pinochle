@@ -218,8 +218,14 @@ export function EuchreApp({ onExit }: { onExit: () => void }) {
             <span className="bar-trump-name">{SUIT_NAME[state.trump]} trump</span>
           </span>
         )}
+        {/* NT needs its own symbol, not just the spelled-out name: the phone
+            bar hides .bar-trump-name, and a chip with nothing left inside it
+            renders as a bare empty oval. */}
         {state.noTrump && state.phase !== 'gameOver' && (
-          <span className="bar-trump"><span className="bar-trump-name">No trump — aces high</span></span>
+          <span className="bar-trump bar-trump-nt">
+            <span className="bar-trump-sym">NT</span>
+            <span className="bar-trump-name">no trump — aces high</span>
+          </span>
         )}
         <button className={`switch bar-switch ${ntEnabled ? 'switch-on' : ''}`} onClick={toggleNt}
           role="switch" aria-checked={ntEnabled} title="House rule: allow calling No Trump in round 2">
